@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Platinum Chess</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1422;color:#fff;font-family:Arial,sans-serif}
+.wrap{width:min(1050px,100%);margin:auto;padding:18px}.tabs,.modes,.controls{display:flex;gap:10px;flex-wrap:wrap}
+button{background:#1c2c44;border:1px solid #334862;color:#e8eef6;border-radius:12px;padding:12px 17px;font-size:15px;cursor:pointer}
+button.active,button:hover{background:#1677ff;border-color:#1677ff;color:#fff}
+.card{background:#172336;border:1px solid #263852;border-radius:22px;padding:24px;margin-top:18px}
+.head{display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}
+h1{margin:0 0 5px;font-size:30px}.desc{color:#bdc9d7;margin:0;font-size:17px}
+.challenge{margin-top:18px;background:#1c2c44;border:1px solid #2d4260;border-radius:13px;padding:15px 18px;display:flex;justify-content:space-between;gap:15px;align-items:center}
+.barbox{width:300px;max-width:100%;height:9px;background:#34455d;border-radius:20px;overflow:hidden}.bar{height:100%;width:0;background:#1680ff}
+.board-shell{width:min(92vw,640px);aspect-ratio:1;margin:26px auto 20px;padding:7px;background:#263852;border-radius:12px;box-shadow:0 18px 50px #0007}
+.board{width:100%;height:100%;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);overflow:hidden;border-radius:6px}
+.sq{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+.light{background:#f0d9ad}.dark{background:#b58863}
+.sq.selected{box-shadow:inset 0 0 0 5px #ffd43b;background:#d5b75f}
+.sq.legal:after{content:"";width:21%;height:21%;border-radius:50%;background:#2228;position:absolute}
+.sq.capture:after{content:"";position:absolute;inset:5px;border:5px solid #2228;border-radius:50%}
+.piece{font-family:"DejaVu Sans","Segoe UI Symbol",serif;font-size:clamp(35px,8.7vw,70px);line-height:1;z-index:2;user-select:none;transition:transform .12s ease,filter .12s ease}
+.wp{color:#fff !important;text-shadow:0 2px 2px #222,0 0 2px #222}.bp{color:#151515 !important;text-shadow:0 1px 1px #777}
+.sq.selected .piece{transform:translateY(-8px) scale(1.08);filter:drop-shadow(0 12px 5px #0008)}
+.board.flipped{transform:rotate(180deg)}.board.flipped .sq>*{transform:rotate(180deg)}.board.flipped .sq.selected .piece{transform:rotate(180deg) translateY(8px) scale(1.08)}
+.coord{position:absolute;font-size:11px;font-weight:bold;z-index:3;pointer-events:none}.rank{left:5px;top:3px}.file{right:5px;bottom:3px}
+.light .coord{color:#7a4d2b}.dark .coord{color:#f5e2c2}
+.status{text-align:center;min-height:28px;font-size:18px;font-weight:bold}.good{color:#4ade80}.bad{color:#ff7777}.hint{color:#facc15}
+.moves{text-align:center;color:#aeb9c8;margin:10px}.note{text-align:center;color:#8190a3;font-size:14px;margin-top:13px}
+@media(max-width:600px){.wrap{padding:10px}.card{padding:14px}.head h1{font-size:25px}.challenge{align-items:flex-start;flex-direction:column}.barbox{width:100%}}
+</style>
+<style>
+#accountPanel{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:9999}
+#accountBox{background:#171a20;color:#fff;border:1px solid #444;border-radius:16px;padding:22px;width:min(420px,92vw);box-shadow:0 20px 60px #0008}
+#accountBox input{width:100%;box-sizing:border-box;padding:11px;margin:6px 0 10px;border-radius:8px;border:1px solid #555;background:#0f1115;color:#fff}
+#accountBox button,.adminBtn{padding:9px 13px;border:0;border-radius:8px;cursor:pointer;margin:3px}
+#adminPanel{display:none;position:fixed;right:16px;top:16px;width:min(440px,92vw);max-height:80vh;overflow:auto;background:#171a20;color:#fff;border:1px solid #444;border-radius:14px;padding:16px;z-index:9998;box-shadow:0 20px 60px #0008}
+.userRow{padding:10px;border-bottom:1px solid #333;display:flex;justify-content:space-between;gap:8px;align-items:center}
+</style>
+
+<style id="taskFixStyle">
+#taskBoard .piece, #taskBoard .chess-piece, .task-board .piece { 
+  display:block!important; visibility:visible!important; opacity:1!important;
+  font-family:"DejaVu Sans","Noto Sans Symbols 2","Segoe UI Symbol",sans-serif!important;
+  font-size:clamp(28px,6vw,52px)!important; line-height:1!important;
+}
+#taskBoard { display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(8,1fr); aspect-ratio:1/1; }
+.task-limit { margin:8px 0; font-weight:700; }
+</style>
+
+<style id="freeBoardMenuCSS">
+#freeBoardPanel{display:none;max-width:920px;margin:20px auto;padding:18px;background:#171a20;color:#fff;border-radius:16px}
+#freeBoard{width:min(620px,94vw);aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);margin:15px auto;border:8px solid #3b2a1e}
+.fbSq{display:flex;align-items:center;justify-content:center;font-family:"DejaVu Sans","Segoe UI Symbol",sans-serif;font-size:clamp(30px,7vw,64px);line-height:1;cursor:pointer}
+.fbLight{background:#f0d9b5}.fbDark{background:#b58863}.fbSel{outline:4px solid #f1c40f;outline-offset:-4px}
+#siteMenu{display:none;position:fixed;left:16px;top:72px;z-index:10000;background:#171a20;color:#fff;border:1px solid #444;border-radius:14px;padding:10px;width:230px;box-shadow:0 15px 40px #0008}
+#siteMenu button{display:block;width:100%;margin:5px 0;padding:11px;border:0;border-radius:9px;text-align:left;cursor:pointer}
+#menuToggle{position:fixed;left:16px;top:72px;z-index:10001;padding:10px 14px;border:0;border-radius:9px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="tabs" id="tabs"></div>
+<div class="card">
+<div class="head"><div><h1 id="title"></h1><p class="desc" id="desc"></p></div>
+<div class="modes"><button id="white" onclick="setSide('w')">♟ За белых</button><button id="black" onclick="setSide('b')">♙ За чёрных</button></div></div>
+<div class="challenge"><strong id="challenge"></strong><div class="barbox"><div class="bar" id="bar"></div></div></div>
+<div class="board-shell"><div class="board" id="board"></div></div>
+<div class="status" id="status"></div><div class="moves" id="moves"></div><div class="tabs" id="variants" style="justify-content:center"></div>
+<div class="controls" style="justify-content:center"><button onclick="restart()">↺ Заново</button><button onclick="hint()">💡 Подсказка</button></div>
+<div class="note">Нажми фигуру — она «поднимется». Затем выбери подсвеченную клетку.</div>
+</div></div>
+<script>
+const DATA={
+"Итальянская партия":{desc:"1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5",variants:[
+{label:"Основная",moves:["e2-e4","e7-e5","g1-f3","b8-c6","f1-c4","f8-c5","c2-c3","g8-f6","d2-d4","e5-d4","c3-d4","c5-b4"],san:["e4","e5","Nf3","Nc6","Bc4","Bc5","c3","Nf6","d4","exd4","cxd4","Bb4"]},
+{label:"4.c3",moves:["e2-e4","e7-e5","g1-f3","b8-c6","f1-c4","f8-c5","c2-c3","g8-f6","d2-d4","e5-d4","c3-d4","c5-b4"],san:["e4","e5","Nf3","Nc6","Bc4","Bc5","c3","Nf6","d4","exd4","cxd4","Bb4"]}]},
+"Сицилианская защита":{desc:"1.e4 c5 2.Nf3 d6 3.d4 cxd4",variants:[
+{label:"Дракон",moves:["e2-e4","c7-c5","g1-f3","d7-d6","d2-d4","c5-d4","f3-d4","g8-f6","b1-c3","g7-g6","c1-e3","f8-g7"],san:["e4","c5","Nf3","d6","d4","cxd4","Nxd4","Nf6","Nc3","g6","Be3","Bg7"]},
+{label:"Найдорф",moves:["e2-e4","c7-c5","g1-f3","d7-d6","d2-d4","c5-d4","f3-d4","g8-f6","b1-c3","a7-a6","c1-e3","e7-e5"],san:["e4","c5","Nf3","d6","d4","cxd4","Nxd4","Nf6","Nc3","a6","Be3","e5"]}]},
+"Французская защита":{desc:"1.e4 e6 2.d4 d5 3.Nc3 Nf6",variants:[
+{label:"Вариант с Nc3",moves:["e2-e4","e7-e6","d2-d4","d7-d5","b1-c3","g8-f6","e4-e5","f6-d7","f2-f4","c7-c5","c3-b5","b8-c6"],san:["e4","e6","d4","d5","Nc3","Nf6","e5","Nd7","f4","c5","Nb5","Nc6"]},
+{label:"Размен",moves:["e2-e4","e7-e6","d2-d4","d7-d5","e4-d5","e6-d5","g1-f3","g8-f6","f1-d3","f8-d6","e1-g1","e8-g8"],san:["e4","e6","d4","d5","exd5","exd5","Nf3","Nf6","Bd3","Bd6","O-O","O-O"]}]},
+"Каро-Канн":{desc:"1.e4 c6 2.d4 d5",variants:[
+{label:"Классика",moves:["e2-e4","c7-c6","d2-d4","d7-d5","b1-c3","d5-e4","c3-e4","c8-f5","e4-g3","g8-f6","f1-d3","f5-g6"],san:["e4","c6","d4","d5","Nc3","dxe4","Nxe4","Bf5","Ng3","Nf6","Bd3","Bg6"]},
+{label:"Панова",moves:["e2-e4","c7-c6","d2-d4","d7-d5","e4-e5","c8-f5","g1-f3","e7-e6","f1-e2","g8-e7","e1-g1","b8-d7"],san:["e4","c6","d4","d5","e5","Bf5","Nf3","e6","Be2","Ne7","O-O","Nd7"]}]}
+};;
+const CH={K:"♚",Q:"♛",R:"♜",B:"♝",N:"♞",P:"♟",k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"};
+const files="abcdefgh";let names=Object.keys(DATA),current=names[0],variant=0,side="w",step=0,board={},selected=null,hintOn=false;
+function line(){return DATA[current].variants[variant]}
+
+function initial(){let b={},back=["r","n","b","q","k","b","n","r"];for(let i=0;i<8;i++){b[files[i]+"1"]=back[i].toUpperCase();b[files[i]+"2"]="P";b[files[i]+"7"]="p";b[files[i]+"8"]=back[i]}return b}
+function col(p){return p===p.toUpperCase()?"w":"b"} function opp(c){return c==="w"?"b":"w"}
+function xy(s){return [files.indexOf(s[0]),8-+s[1]]} function sq(x,y){return x>=0&&x<8&&y>=0&&y<8?files[x]+(8-y):null}
+function pieceAt(x,y){let s=sq(x,y);return s?board[s]:null}
+function pathClear(a,b){let [x1,y1]=xy(a),[x2,y2]=xy(b),dx=Math.sign(x2-x1),dy=Math.sign(y2-y1),x=x1+dx,y=y1+dy;while(x!==x2||y!==y2){if(pieceAt(x,y))return false;x+=dx;y+=dy}return true}
+
+function attacks(from,to){
+ let p=board[from];if(!p)return false;let [x1,y1]=xy(from),[x2,y2]=xy(to),dx=x2-x1,dy=y2-y1,t=p.toLowerCase();
+ if(t==="p"){let d=col(p)==="w"?-1:1;return dy===d&&Math.abs(dx)===1}
+ if(t==="n")return (Math.abs(dx)===1&&Math.abs(dy)===2)||(Math.abs(dx)===2&&Math.abs(dy)===1);
+ if(t==="k")return Math.max(Math.abs(dx),Math.abs(dy))===1;
+ if(t==="b")return Math.abs(dx)===Math.abs(dy)&&pathClear(from,to);
+ if(t==="r")return (dx===0||dy===0)&&pathClear(from,to);
+ if(t==="q")return (dx===0||dy===0||Math.abs(dx)===Math.abs(dy))&&pathClear(from,to);
+ return false;
+}
+function squareAttacked(s,by){for(let f in board)if(col(board[f])===by&&attacks(f,s))return true;return false}
+function pseudoMoves(from){
+ let p=board[from];if(!p)return[];let c=col(p),[x,y]=xy(from),t=p.toLowerCase(),out=[];
+ const add=(nx,ny)=>{let z=sq(nx,ny);if(z&&(!board[z]||col(board[z])!==c))out.push(z)};
+ if(t==="p"){
+   let d=c==="w"?-1:1,z=sq(x,y+d);
+   if(z&&!board[z]){out.push(z);if(y===(c==="w"?6:1)){let z2=sq(x,y+2*d);if(z2&&!board[z2])out.push(z2)}}
+   [-1,1].forEach(dx=>{let z=sq(x+dx,y+d);if(z&&board[z]&&col(board[z])!==c)out.push(z)});
+ }else if(t==="n"){[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]].forEach(v=>add(x+v[0],y+v[1]))}
+ else if(t==="k"){for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)if(dx||dy)add(x+dx,y+dy)}
+ else {let dirs=[];if(t==="b"||t==="q")dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);if(t==="r"||t==="q")dirs.push([1,0],[-1,0],[0,1],[0,-1]);for(const [dx,dy] of dirs){let nx=x+dx,ny=y+dy;while(sq(nx,ny)){let z=sq(nx,ny);if(!board[z])out.push(z);else{if(col(board[z])!==c)out.push(z);break}nx+=dx;ny+=dy}}}
+ return out;
+}
+function make(from,to){let p=board[from];delete board[from];delete board[to];board[to]=p;
+ if(p.toLowerCase()==="p" && ((col(p)==="w"&&to[1]==="8")||(col(p)==="b"&&to[1]==="1"))){board[to]=col(p)==="w"?"Q":"q"}
+}
+function playOpponent(){let m=line().moves;while(step<m.length&&step%2!==({"w":0,"b":1}[side])){make(...m[step].split("-"));step++}}
+function restart(){board=initial();step=0;selected=null;hintOn=false;playOpponent();render()}
+function setSide(s){side=s;restart()}
+function choose(n){current=n;variant=0;restart()}
+function chooseVariant(i){variant=i;restart()}
+function hint(){hintOn=true;render()}
+function clickSquare(s){
+ if(step>=line().moves.length||step%2!==(side==="w"?0:1))return;
+ let p=board[s];
+ if(selected===null){if(p&&col(p)===side){selected=s;renderBoard()}return}
+ if(s===selected){selected=null;renderBoard();return}
+ let legal=pseudoMoves(selected);
+ if(!legal.includes(s)){selected=null;document.getElementById("status").innerHTML='<span class="bad">✗ Эта фигура так ходить не может.</span>';renderBoard();return}
+ let expected=line().moves[step];
+ if(selected+"-"+s===expected){make(selected,s);step++;selected=null;hintOn=false;playOpponent();render()}
+ else{selected=null;document.getElementById("status").innerHTML='<span class="bad">✗ Ход возможный, но для тренировки нужен другой ход.</span>';renderBoard()}
+}
+function renderBoard(){
+ let el=document.getElementById("board");el.innerHTML="";el.classList.toggle("flipped",side==="b");
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){let s=files[c]+(8-r),q=document.createElement("div");q.className="sq "+((r+c)%2?"dark":"light");
+ if(s===selected)q.classList.add("selected");
+ if(selected&&pseudoMoves(selected).includes(s))q.classList.add(board[s]?"capture":"legal");
+ q.onclick=()=>clickSquare(s);
+ if(board[s]){let p=document.createElement("span");p.className="piece "+(board[s]===board[s].toUpperCase()?"wp":"bp");p.textContent=CH[board[s]];q.appendChild(p)}
+ if(c===0){let x=document.createElement("span");x.className="coord rank";x.textContent=8-r;q.appendChild(x)}
+ if(r===7){let x=document.createElement("span");x.className="coord file";x.textContent=files[c];q.appendChild(x)}
+ el.appendChild(q)}
+}
+function render(){
+ document.getElementById("title").textContent=current;document.getElementById("desc").textContent=DATA[current].desc;
+ document.getElementById("white").classList.toggle("active",side==="w");document.getElementById("black").classList.toggle("active",side==="b");
+ document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("active",x.dataset.n===current));
+ let ve=document.getElementById("variants");ve.innerHTML="";DATA[current].variants.forEach((v,i)=>{let b=document.createElement("button");b.textContent="Линия "+(i+1)+": "+v.label;b.classList.toggle("active",i===variant);b.onclick=()=>chooseVariant(i);ve.appendChild(b)});
+ let total=line().moves.length, userTotal=line().moves.filter((_,i)=>i%2===(side==="w"?0:1)).length;
+ let done=line().moves.slice(0,step).filter((_,i)=>i%2===(side==="w"?0:1)).length;
+ document.getElementById("bar").style.width=(done/userTotal*100)+"%";
+ document.getElementById("moves").textContent="Ходы: "+line().san.slice(0,step).join("  ");
+ document.getElementById("challenge").textContent=step>=total?"Дебют пройден! 🎉":"Ход "+(done+1)+" — найди правильный ход";
+ if(step>=total)document.getElementById("status").innerHTML='<span class="good">✓ Дебют пройден!</span>';
+ else if(hintOn)document.getElementById("status").innerHTML='<span class="hint">💡 Правильный ход: '+line().san[step]+'</span>';
+ else document.getElementById("status").textContent="Твой ход";
+ renderBoard()
+}
+names.forEach(n=>{let b=document.createElement("button");b.textContent=n;b.dataset.n=n;b.onclick=()=>choose(n);document.getElementById("tabs").appendChild(b)});
+restart();
+</script>
+<div id="accountPanel">
+  <div id="accountBox">
+    <h2>Аккаунт</h2>
+    <input id="accName" placeholder="Имя пользователя">
+    <input id="accPass" type="password" placeholder="Пароль">
+    <button onclick="createAccount()">Создать аккаунт</button>
+    <button onclick="loginAccount()">Войти</button>
+    <button onclick="closeAccount()">Закрыть</button>
+    <p id="accMsg"></p>
+  </div>
+</div>
+<div id="adminPanel">
+  <h2>👑 Панель администратора</h2>
+  <p>Администратор: <b id="adminName"></b></p>
+  <div id="userList"></div>
+  <button class="adminBtn" onclick="closeAdmin()">Закрыть</button>
+</div>
+
+<script>
+(function(){
+  const KEY='chessTrainerAccounts_v1';
+  const SESSION='chessTrainerSession_v1';
+  function users(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}
+  function save(u){localStorage.setItem(KEY,JSON.stringify(u))}
+  function current(){return localStorage.getItem(SESSION)||''}
+
+  window.openAccount=function(){document.getElementById('accountPanel').style.display='flex'}
+  window.closeAccount=function(){document.getElementById('accountPanel').style.display='none'}
+  window.createAccount=function(){
+    const n=document.getElementById('accName').value.trim(), p=document.getElementById('accPass').value;
+    const msg=document.getElementById('accMsg');
+    if(!n||!p){msg.textContent='Заполни имя и пароль.';return}
+    const u=users();
+    if(u.some(x=>x.name.toLowerCase()===n.toLowerCase())){msg.textContent='Такой аккаунт уже есть.';return}
+    const admin=u.length===0;
+    u.push({name:n,pass:p,banned:false,admin});
+    save(u); localStorage.setItem(SESSION,n); msg.textContent=admin?'Аккаунт создан. Ты главный администратор.':'Аккаунт создан.';
+    setTimeout(closeAccount,700); updateAccountUI();
+  }
+  window.loginAccount=function(){
+    const n=document.getElementById('accName').value.trim(), p=document.getElementById('accPass').value;
+    const u=users(), x=u.find(a=>a.name===n&&a.pass===p), msg=document.getElementById('accMsg');
+    if(!x){msg.textContent='Неверное имя или пароль.';return}
+    if(x.banned){msg.textContent='Этот аккаунт заблокирован.';return}
+    localStorage.setItem(SESSION,x.name); msg.textContent='Вход выполнен.'; setTimeout(closeAccount,500); updateAccountUI();
+  }
+  window.logoutAccount=function(){localStorage.removeItem(SESSION);updateAccountUI()}
+  window.openAdmin=function(){
+    const me=users().find(x=>x.name===current());
+    if(!me||!me.admin)return;
+    document.getElementById('adminPanel').style.display='block';
+    document.getElementById('adminName').textContent=me.name;
+    renderUsers();
+  }
+  window.closeAdmin=function(){document.getElementById('adminPanel').style.display='none'}
+  window.toggleBan=function(name){
+    const u=users(), me=u.find(x=>x.name===current()), x=u.find(a=>a.name===name);
+    if(!me?.admin||!x||x.admin)return;
+    x.banned=!x.banned; save(u); renderUsers();
+  }
+  function renderUsers(){
+    const box=document.getElementById('userList'), u=users();
+    box.innerHTML=u.map(x=>`<div class="userRow"><span>♟️ ${x.name}${x.admin?' 👑':''}${x.banned?' 🚫':''}</span>${x.admin?'':`<button class="adminBtn" onclick="toggleBan(${JSON.stringify(x.name)})">${x.banned?'Разбанить':'Забанить'}</button>`}</div>`).join('')||'<p>Пользователей пока нет.</p>';
+  }
+  function updateAccountUI(){
+    let b=document.getElementById('accountBtn');
+    if(!b){
+      b=document.createElement('button'); b.id='accountBtn'; b.textContent='👤 Аккаунт';
+      b.style.cssText='position:fixed;left:16px;top:16px;z-index:9000;padding:10px 14px;border:0;border-radius:9px;cursor:pointer';
+      document.body.appendChild(b);
+    }
+    const me=users().find(x=>x.name===current());
+    b.onclick=me?()=>{if(me.admin)openAdmin();else logoutAccount()}:openAccount;
+    b.textContent=me?(me.admin?'👑 '+me.name:'👤 '+me.name+' (выйти)'):'👤 Аккаунт';
+  }
+  updateAccountUI();
+})();
+</script>
+
+<style>
+#puzzlePanel{max-width:900px;margin:24px auto;padding:18px;background:#171a20;color:#fff;border-radius:16px;border:1px solid #3a3d45}
+#puzzleBoard{width:min(560px,92vw);aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);margin:14px auto;border:8px solid #3b2a1e;border-radius:8px;overflow:hidden}
+.pzsq{display:flex;align-items:center;justify-content:center;font-size:clamp(28px,7vw,58px);cursor:pointer;position:relative}
+.pzsq.light{background:#f0d9b5}.pzsq.dark{background:#b58863}.pzsq.sel{outline:4px solid #f5d76e;outline-offset:-4px}.pzsq.dot:after{content:'';width:22%;height:22%;border-radius:50%;background:#0005;position:absolute}.pzsq.cap:after{content:'';position:absolute;inset:7%;border:4px solid #0005;border-radius:50%}
+#puzzleInfo{text-align:center}.puzzleBtns{text-align:center}.puzzleBtns button{padding:10px 15px;border:0;border-radius:9px;cursor:pointer;margin:4px}.eloBadge{font-weight:700}
+</style>
+
+<div id="puzzlePanel">
+<h2>🧩 Шахматные задачи</h2>
+<div id="taskLimitLabel" class="task-limit"></div>
+<div><span id="puzzleNum"></span> · ELO: <b id="puzzleElo">—</b></div>
+<p id="puzzleText"></p>
+<div id="puzzleBoard" class="realTaskBoard"></div>
+<div class="puzzleBtns"><button onclick="nextPuzzle()">Следующая задача</button><button onclick="resetPuzzle()">Сбросить</button></div>
+<p id="puzzleMsg" style="text-align:center;font-weight:700"></p>
+</div>
+
+<div class="extraPanel">
+<h2>🎓 Школа</h2>
+<p>Короткие уроки по дебюту, тактике и стратегии.</p>
+<div class="schoolGrid">
+<button onclick="showLesson(0)">1. Дебют</button><button onclick="showLesson(1)">2. Развитие фигур</button>
+<button onclick="showLesson(2)">3. Центр</button><button onclick="showLesson(3)">4. Рокировка</button>
+<button onclick="showLesson(4)">5. Тактика</button><button onclick="showLesson(5)">6. План</button>
+</div><div id="lessonText" class="lessonText">Выбери урок.</div>
+</div>
+
+<div class="extraPanel">
+<h2>🤖 ИИ-подсказка по дебюту</h2>
+<p>Выбери другой вариант — сайт покажет учебное продолжение и объяснение.</p>
+<div id="aiChoices"></div><div id="aiResult" class="lessonText">Выбери вариант.</div>
+</div>
+
+<style>
+.realTaskBoard{width:min(560px,92vw)!important;aspect-ratio:1!important;display:grid!important;grid-template-columns:repeat(8,1fr)!important;grid-template-rows:repeat(8,1fr)!important;margin:14px auto!important;border:8px solid #3b2a1e;border-radius:8px;overflow:hidden}
+.realTaskBoard .pzsq{min-width:0;min-height:0;display:flex!important;align-items:center!important;justify-content:center!important;font-family:"DejaVu Sans","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif!important;font-size:clamp(32px,7vw,62px)!important;line-height:1!important}
+.realTaskBoard .light{background:#f0d9b5}.realTaskBoard .dark{background:#b58863}
+.realTaskBoard .sel{outline:4px solid #f1c40f;outline-offset:-4px}.realTaskBoard .dot:after{content:"";width:18%;height:18%;border-radius:50%;background:#2228}
+.extraPanel{max-width:900px;margin:24px auto;padding:18px;background:#171a20;color:#fff;border-radius:16px;border:1px solid #3a3d45}
+.schoolGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.lessonText{margin-top:14px;padding:14px;background:#202735;border-radius:10px;line-height:1.5}.aiChoice{margin:7px 0}.aiChoice button{width:100%;text-align:left}
+</style>
+
+<script>
+(function(){
+const F="abcdefgh";
+const P=[
+{fen:"6k1/5ppp/8/8/3Q4/8/5PPP/6K1 w - - 0 1",seq:["d4-g7"],text:"Мат в 1: найди Qxg7#."},
+{fen:"6k1/5ppp/8/8/3Q4/8/5PPP/6K1 w - - 0 1",seq:["d4-g7"],text:"Тактика: найди сильнейший удар ферзём."},
+{fen:"6k1/5ppp/8/8/2B5/8/5PPP/6K1 w - - 0 1",seq:["c4-g8"],text:"Мат в 1: найди Bxg8#."},
+{fen:"6k1/5ppp/8/8/3R4/8/5PPP/6K1 w - - 0 1",seq:["d4-g4"],text:"Тактика: поставь ладью на g4."},
+{fen:"6k1/5ppp/8/8/3Q4/8/5PPP/6K1 w - - 0 1",seq:["d4-h8"],text:"Мат в 1: найди Qh8#."},
+{fen:"6k1/5ppp/8/8/3N4/8/5PPP/6K1 w - - 0 1",seq:["d4-f5"],text:"Тактика конём: найди лучший прыжок."},
+{fen:"6k1/5ppp/8/8/3Q4/8/5PPP/6K1 w - - 0 1",seq:["d4-g4"],text:"Найди шах ферзём с g4."},
+{fen:"6k1/5ppp/8/8/3B4/8/5PPP/6K1 w - - 0 1",seq:["d4-g7"],text:"Найди диагональный тактический ход."},
+{fen:"6k1/5ppp/8/8/3R4/8/5PPP/6K1 w - - 0 1",seq:["d4-d8"],text:"Найди сильный вертикальный ход ладьи."},
+{fen:"6k1/5ppp/8/8/3Q4/8/5PPP/6K1 w - - 0 1",seq:["d4-e5"],text:"Найди лучший ход ферзя."}
+];
+function users(){try{return JSON.parse(localStorage.getItem("chessTrainerAccounts_v1")||"[]")}catch(e){return[]}}
+function me(){let n=localStorage.getItem("chessTrainerSession_v1");return users().find(x=>x.name===n)}
+function parse(f){let b={},rows=f.split(" ")[0].split("/");rows.forEach((r,i)=>{let c=0;for(let ch of r){if(/\d/.test(ch))c+=+ch;else{b[F[c]+(8-i)]=ch;c++}}});return b}
+function glyph(p){return {K:"♚",Q:"♛",R:"♜",B:"♝",N:"♞",P:"♟",k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"}[p]}
+let i=0,sel=null,done=false,b={};
+function day(){let k="chess_tasks_"+(localStorage.getItem("chessTrainerSession_v1")||"guest"),d=new Date().toISOString().slice(0,10),v;try{v=JSON.parse(localStorage.getItem(k)||"null")}catch(e){v=null}if(!v||v.date!==d)v={date:d,count:0};localStorage.setItem(k,JSON.stringify(v));return v}
+function puzzleMoves(from){
+ let p=b[from]; if(!p)return[]; let c=p===p.toUpperCase()?"w":"b";
+ let [x,y]=[F.indexOf(from[0]),8-+from[1]],t=p.toLowerCase(),out=[];
+ const add=(nx,ny)=>{let z=nx>=0&&nx<8&&ny>=0&&ny<8?F[nx]+(8-ny):null;if(z&&(!b[z]||(b[z]===b[z].toUpperCase()?"w":"b")!==c))out.push(z)};
+ const clear=(nx,ny)=>{while(nx>=0&&nx<8&&ny>=0&&ny<8){let z=F[nx]+(8-ny);if(b[z]){if((b[z]===b[z].toUpperCase()?"w":"b")!==c)out.push(z);break}out.push(z);nx+=arguments[2]||0;ny+=arguments[3]||0;}}
+ if(t==='p'){let d=c==='w'?-1:1,z=F[x]+(8-(y+d));if(!b[z]){out.push(z);if(y===(c==='w'?6:1)){let z2=F[x]+(8-(y+2*d));if(z2&&!b[z2])out.push(z2)}}[-1,1].forEach(dx=>{let nx=x+dx,ny=y+d;if(nx>=0&&nx<8&&ny>=0&&ny<8){let z=F[nx]+(8-ny);if(b[z]&&(b[z]===b[z].toUpperCase()?"w":"b")!==c)out.push(z)}})}
+ else if(t==='n')[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]].forEach(v=>add(x+v[0],y+v[1]));
+ else if(t==='k')for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)if(dx||dy)add(x+dx,y+dy);
+ else {let dirs=[];if(t==='b'||t==='q')dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);if(t==='r'||t==='q')dirs.push([1,0],[-1,0],[0,1],[0,-1]);for(const [dx,dy] of dirs){let nx=x+dx,ny=y+dy;while(nx>=0&&nx<8&&ny>=0&&ny<8){let z=F[nx]+(8-ny);if(!b[z])out.push(z);else{if((b[z]===b[z].toUpperCase()?"w":"b")!==c)out.push(z);break}nx+=dx;ny+=dy}}}
+ return out;
+}
+function render(){b=parse(P[i].fen);let el=document.getElementById("puzzleBoard");el.innerHTML="";for(let r=0;r<8;r++)for(let c=0;c<8;c++){let s=F[c]+(8-r),d=document.createElement("div");d.className="pzsq "+((r+c)%2?"dark":"light");if(s===sel)d.classList.add("sel");if(sel&&puzzleMoves(sel).includes(s))d.classList.add("dot");if(b[s])d.textContent=glyph(b[s]);d.onclick=()=>click(s);el.appendChild(d)}let m=me(),v=day();document.getElementById("puzzleNum").textContent="Задача "+(i+1)+"/"+P.length;document.getElementById("puzzleText").textContent=P[i].text;document.getElementById("puzzleElo").textContent=m?m.elo:"Войди в аккаунт";document.getElementById("taskLimitLabel").textContent="Сегодня: "+v.count+"/10 задач"}
+function click(s){if(done)return;let m=me(),v=day();if(!m){document.getElementById("puzzleMsg").textContent="Сначала войди в аккаунт.";return}if(v.count>=10){document.getElementById("puzzleMsg").textContent="Лимит 10 задач на сегодня исчерпан.";return}if(!sel){if(b[s]&&b[s]===b[s].toUpperCase()){sel=s;render()}return}if(s===sel){sel=null;render();return}let legal=puzzleMoves(sel);if(!legal.includes(s)){document.getElementById("puzzleMsg").textContent="❌ Эта фигура не может так ходить.";sel=null;render();return}
+ let expected=P[i].seq[0]; if(sel+"-"+s===expected){done=true;v.count++;localStorage.setItem("chess_tasks_"+m.name,JSON.stringify(v));let u=users(),x=u.find(z=>z.name===m.name);x.elo=(x.elo||1000)+10;localStorage.setItem("chessTrainerAccounts_v1",JSON.stringify(u));document.getElementById("puzzleMsg").textContent="✅ Правильно! +10 ELO";sel=null;render()}else{document.getElementById("puzzleMsg").textContent="↩️ Ход возможный, но неверный для задачи — фигура возвращена на место.";sel=null;render()}}
+window.nextPuzzle=function(){let v=day();if(v.count>=10){document.getElementById("puzzleMsg").textContent="Лимит 10 задач на сегодня исчерпан.";return}i=(i+1)%P.length;sel=null;done=false;document.getElementById("puzzleMsg").textContent="";render()}
+window.resetPuzzle=function(){sel=null;done=false;document.getElementById("puzzleMsg").textContent="";render()}
+
+const L=["В дебюте развивай фигуры, борись за центр и старайся быстро сделать короля безопасным.","Выводи коней и слонов, а не двигай одну фигуру много раз без необходимости.","Пешки e и d помогают контролировать центр и открывать линии для фигур.","Рокировка прячет короля и соединяет ладьи. Перед ней проверь, что условия выполнены.","Ищи сначала шахи, взятия и угрозы — так проще находить тактические ходы.","После хода соперника спроси: что он угрожает сделать и какая фигура у него плохо защищена?"];
+window.showLesson=function(n){document.getElementById("lessonText").textContent=L[n]}
+
+function ai(){let box=document.getElementById("aiChoices");box.innerHTML="";DATA[current].variants.forEach((v,n)=>{let x=document.createElement("div");x.className="aiChoice";let btn=document.createElement("button");btn.textContent="🤖 "+v.label;btn.onclick=()=>{chooseVariant(n);document.getElementById("aiResult").innerHTML="<b>"+v.label+"</b><br>Продолжение: "+v.san.join(" · ")+"<br><br>Это учебная линия: она показывает, как меняется позиция после другого выбора.";};x.appendChild(btn);box.appendChild(x)})}
+setTimeout(()=>{ai();render()},50);
+})();
+</script>
+
+<script id="dailyTaskFix">
+(function(){
+ const LIMIT=10, K='chess_daily_tasks_v1';
+ function today(){return new Date().toISOString().slice(0,10)}
+ function session(){return localStorage.getItem('chessTrainerSession_v1')||''}
+ function get(){
+   const k=session(); if(!k)return {date:today(),count:0};
+   try{return JSON.parse(localStorage.getItem(K+'_'+k)||'{"date":"","count":0}')}catch(e){return {date:"",count:0}}
+ }
+ function set(v){const k=session();if(k)localStorage.setItem(K+'_'+k,JSON.stringify(v))}
+ window.canDoTask=function(){
+   const v=get(); if(v.date!==today()){v={date:today(),count:0};set(v)}
+   return v.count<LIMIT;
+ }
+ window.countTask=function(){
+   if(!canDoTask())return false;
+   const v=get();v.count++;set(v);update();
+   return true;
+ }
+ function update(){
+   let el=document.getElementById('dailyTaskLimit');
+   if(!el){
+     el=document.createElement('div');el.id='dailyTaskLimit';el.className='task-limit';
+     const target=document.querySelector('#tasks, .tasks, [id*="task"]');
+     (target||document.body).prepend(el);
+   }
+   const v=get(), n=v.date===today()?v.count:0;
+   el.textContent='🧩 Задачи сегодня: '+n+'/'+LIMIT;
+ }
+ const oldOpen=window.openTasks;
+ if(typeof oldOpen==='function'){
+   window.openTasks=function(){
+     if(!canDoTask()){alert('На сегодня лимит 10 задач исчерпан. Попробуй завтра.');return;}
+     return oldOpen.apply(this,arguments);
+   }
+ }
+ // Count only when the existing task flow marks a task as solved.
+ document.addEventListener('click',function(e){
+   const t=e.target.closest('button');
+   if(!t)return;
+   const s=(t.textContent||'').toLowerCase();
+   if(false){countTask();}
+ });
+ update();
+})();
+</script>
+
+<div id="freeBoardPanel">
+<h2>♟️ Свободная доска</h2>
+<p>Расставляй фигуры и играй обычную партию. Нажми на фигуру, затем на клетку назначения.</p>
+<div id="freeBoard"></div>
+<button onclick="freeReset()">Начальная позиция</button>
+<button onclick="freeClear()">Очистить доску</button>
+<p id="freeMsg"></p>
+</div>
+<button id="menuToggle" type="button">☰ Разделы</button>
+<div id="siteMenu">
+<button data-section="openings">♟️ Дебюты</button>
+<button data-section="free">♙ Анализ / свободная доска</button>
+<button data-section="tasks">🧩 Задачи</button>
+<button data-section="school">🎓 Уроки</button>
+<button data-section="ai">🤖 ИИ-варианты</button>
+<button data-section="bot">🤖 Играть с ботом</button>
+</div>
+<script id="freeBoardAndMenuJS">
+(function(){
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+const files="abcdefgh";let fb={},sel=null;
+function start(){fb={};["a1","b1","c1","d1","e1","f1","g1","h1"].forEach((x,i)=>fb[x]=["R","N","B","Q","K","B","N","R"][i]);["a2","b2","c2","d2","e2","f2","g2","h2"].forEach(x=>fb[x]="P");["a8","b8","c8","d8","e8","f8","g8","h8"].forEach((x,i)=>fb[x]=["r","n","b","q","k","b","n","r"][i]);["a7","b7","c7","d7","e7","f7","g7","h7"].forEach(x=>fb[x]="p");}
+function coord(c,r){return files[c]+(8-r)}
+function render(){let el=document.getElementById("freeBoard");el.innerHTML="";for(let r=0;r<8;r++)for(let c=0;c<8;c++){let sq=coord(c,r),d=document.createElement("div");d.className="fbSq "+((r+c)%2?"fbDark":"fbLight");if(sq===sel)d.classList.add("fbSel");if(fb[sq])d.textContent=glyph[fb[sq]];d.addEventListener("click",()=>move(sq));el.appendChild(d)}}
+function move(s){if(!sel){if(fb[s]){sel=s;render()}return}if(sel===s){sel=null;render();return}if(fb[sel]){fb[s]=fb[sel];delete fb[sel];document.getElementById("freeMsg").textContent="Ход выполнен: "+sel+" → "+s}sel=null;render()}
+window.freeReset=function(){start();sel=null;render();document.getElementById("freeMsg").textContent=""}
+window.freeClear=function(){fb={};sel=null;render()}
+function show(id){
+ document.querySelectorAll("#freeBoardPanel,.extraPanel,#puzzlePanel").forEach(x=>x.style.display="none");
+ if(id==="free"){document.getElementById("freeBoardPanel").style.display="block";render()}
+ else if(id==="tasks")document.getElementById("puzzlePanel").style.display="block";
+ else if(id==="school"){document.querySelectorAll(".extraPanel")[0].style.display="block"}
+ else if(id==="ai"){document.querySelectorAll(".extraPanel")[1].style.display="block"}
+ else if(id==="bot"){document.getElementById("botPanel").style.display="block";botReset()}
+ else {document.querySelectorAll(".extraPanel").forEach(x=>x.style.display="none");document.querySelector("#openings, .openings, [id*=opening]")?.scrollIntoView({behavior:"smooth"})}
+ document.getElementById("siteMenu").style.display="none";
+}
+document.getElementById("menuToggle").addEventListener("click",()=>{let m=document.getElementById("siteMenu");m.style.display=m.style.display==="block"?"none":"block"});
+document.querySelectorAll("#siteMenu button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.section)));
+start();render();
+})();
+</script>
+
+<div id="openingVariantsPanel" class="extraPanel">
+<h2>♟️ Популярные варианты дебюта</h2>
+<p>Каждый ход показывается отдельно: нажми «Следующий ход», чтобы увидеть ход и сразу понять его идею.</p>
+<div id="openingVariantButtons" class="schoolGrid"></div>
+<div id="openingLine" class="lessonText"></div>
+<div id="openingExplanation" class="lessonText"></div>
+<div><button id="prevOpeningMove" type="button">← Назад</button><button id="nextOpeningMove" type="button">Следующий ход →</button><button id="resetOpeningLine" type="button">Сначала</button></div>
+</div>
+
+<div id="botPanel" class="extraPanel">
+<h2>🤖 Игра с ботом</h2>
+<p>Отдельный режим: выбери сторону, затем ходи фигурами. Бот отвечает автоматически.</p>
+<div class="botControls"><button id="botWhite" type="button">♔ Играть за белых</button><button id="botBlack" type="button">♚ Играть за чёрных</button><button id="botReset" type="button">↻ Новая партия</button></div>
+<div id="botStatus" class="lessonText">Твой ход.</div>
+<div class="board-shell"><div id="botBoard" class="board"></div></div>
+<div class="botTip">Выбирай фигуру, затем клетку назначения. Подсказки показывают все клетки, куда фигура может пойти.</div>
+</div>
+
+<style>
+#openingVariantsPanel,#botPanel{max-width:900px;margin:20px auto;padding:18px;background:#171a20;color:#fff;border-radius:16px}
+#openingVariantsPanel .variantActive{outline:3px solid #f1c40f}
+#openingVariantsPanel button,#botPanel button{padding:10px 14px;margin:4px;border:0;border-radius:9px;cursor:pointer}
+#openingExplanation{min-height:70px;margin-top:10px}
+#botBoard{margin:0}.botSq{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}.botPiece{font-family:"DejaVu Sans","Segoe UI Symbol",serif;font-size:clamp(35px,8.7vw,70px);line-height:1;z-index:2;user-select:none;transition:transform .12s ease,filter .12s ease}.botWp{color:#fff!important;text-shadow:0 2px 2px #222,0 0 2px #222}.botBp{color:#151515!important;text-shadow:0 1px 1px #777}.botSq.botSel{box-shadow:inset 0 0 0 5px #ffd43b;background:#d5b75f}.botSq.botSel .botPiece{transform:translateY(-8px) scale(1.08);filter:drop-shadow(0 12px 5px #0008)}.botLight{background:#f0d9ad}.botDark{background:#b58863}.botSq.botDot:after{content:"";width:21%;height:21%;border-radius:50%;background:#2228;position:absolute}.botSq.botCapture:after{content:"";position:absolute;inset:5px;border:5px solid #2228;border-radius:50%}.botTip{opacity:.8;text-align:center}
+</style>
+
+<script id="openingVariantsFixedJS">
+(function(){
+const lines=[
+{name:"Итальянская партия",moves:[
+["1.e4","Белые занимают центр и открывают диагонали слону f1 и ферзю."],["1...e5","Чёрные оспаривают центр и открывают линии слону f8 и ферзю."],["2.Nf3","Конь развивается, атакует пешку e5 и помогает контролировать центр."],["2...Nc6","Конь защищает e5 и занимает активное центральное поле."],["3.Bc4","Слон направляется на f7 — важную точку возле короля."],["3...Bc5","Слон выходит активно и давит на f2."],["4.c3","Пешка готовит d4 и усиливает белый центр."],["4...Nf6","Чёрные развивают второго коня и атакуют e4."],["5.d4","Белые вскрывают центр и получают больше пространства."],["5...exd4","Чёрные меняют центральную пешку и получают динамическую позицию."]]},
+{name:"Сицилианская защита",moves:[
+["1.e4","Белые занимают центр."],["1...c5","Чёрные сразу атакуют центр с фланга и создают асимметричную игру."],["2.Nf3","Конь развивается и контролирует e5 и d4."],["2...d6","Чёрные укрепляют центр и готовят развитие слона."],["3.d4","Белые бросают вторую центральную пешку в борьбу за пространство."],["3...cxd4","Чёрные меняют пешку и освобождают линии для фигур."],["4.Nxd4","Конь возвращает пешку и занимает сильное центральное поле."],["4...Nf6","Чёрные развивают коня и атакуют e4."],["5.Nc3","Второй конь поддерживает центр и готовит дальнейшее развитие."]]},
+{name:"Защита Каро-Канн",moves:[
+["1.e4","Белые занимают центр и открывают линии лёгким фигурам."],["1...c6","Чёрные готовят надёжный ответ d5."],["2.d4","Белые строят сильный пешечный центр."],["2...d5","Чёрные немедленно оспаривают центр."],["3.exd5","Белые меняют центральные пешки."],["3...cxd5","Чёрные возвращают пешку и получают активную центральную пешку."],["4.Bd3","Слон развивается и смотрит в сторону королевского фланга."],["4...Nc6","Конь выходит в игру и поддерживает центр."],["5.Nf3","Конь развивается, контролирует важные поля и готовит рокировку."]]}];
+let cur=0,step=0;const box=document.getElementById('openingVariantButtons');
+lines.forEach((x,i)=>{let b=document.createElement('button');b.textContent=x.name;b.onclick=()=>{cur=i;step=0;render()};box.appendChild(b)});
+function render(){box.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('variantActive',i===cur));const x=lines[cur],m=x.moves[step-1];document.getElementById('openingLine').textContent=step?x.moves.slice(0,step).map(a=>a[0]).join('  '):'Начальная позиция';document.getElementById('openingExplanation').innerHTML=step?'<b>'+m[0]+'</b><br>'+m[1]:'<b>Начало</b><br>Нажми «Следующий ход», чтобы разобрать вариант по одному ходу.';document.getElementById('prevOpeningMove').disabled=step===0;document.getElementById('nextOpeningMove').disabled=step===x.moves.length}
+document.getElementById('prevOpeningMove').onclick=()=>{if(step){step--;render()}};document.getElementById('nextOpeningMove').onclick=()=>{if(step<lines[cur].moves.length){step++;render()}};document.getElementById('resetOpeningLine').onclick=()=>{step=0;render()};render();
+})();
+</script>
+
+<script id="botJS">
+(function(){
+const files='abcdefgh';
+const glyph={K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+const value={p:100,n:320,b:330,r:500,q:900,k:20000};
+let board={},selected=null,player='w',turn='w',thinking=false,orientation='w';
+let castle={wK:true,wQ:true,bK:true,bQ:true},ep=null,halfmove=0,gameOver=false;
+
+function reset(){
+  board={}; const back=['R','N','B','Q','K','B','N','R'];
+  for(let i=0;i<8;i++){board[files[i]+'1']=back[i];board[files[i]+'2']='P';board[files[i]+'7']='p';board[files[i]+'8']=back[i].toLowerCase()}
+  selected=null;turn='w';thinking=false;orientation=player;castle={wK:true,wQ:true,bK:true,bQ:true};ep=null;halfmove=0;gameOver=false;render();status();
+  if(player==='b')setTimeout(botMove,400);
+}
+function sq(x,y){return files[x]+(8-y)}
+function color(p){return p?(p===p.toUpperCase()?'w':'b'):null}
+function enemy(c){return c==='w'?'b':'w'}
+function cloneBoard(b){return Object.assign({},b)}
+function findKing(b,c){for(const s in b)if(b[s]=== (c==='w'?'K':'k'))return s;return null}
+function attacked(b,target,by){
+  const tx=files.indexOf(target[0]),ty=8-+target[1];
+  for(const from in b){const p=b[from];if(color(p)!==by)continue;const x=files.indexOf(from[0]),y=8-+from[1],t=p.toLowerCase();
+    if(t==='p'){const d=by==='w'?-1:1;if(y+d===ty&&Math.abs(x-tx)===1)return true}
+    else if(t==='n'){if([[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]].some(v=>x+v[0]===tx&&y+v[1]===ty))return true}
+    else if(t==='k'){if(Math.max(Math.abs(x-tx),Math.abs(y-ty))===1)return true}
+    else {let ds=[];if(t==='b'||t==='q')ds.push([1,1],[1,-1],[-1,1],[-1,-1]);if(t==='r'||t==='q')ds.push([1,0],[-1,0],[0,1],[0,-1]);for(const [dx,dy] of ds){let nx=x+dx,ny=y+dy;while(nx>=0&&nx<8&&ny>=0&&ny<8){let z=sq(nx,ny);if(z===target)return true;if(b[z])break;nx+=dx;ny+=dy}}
+    }
+  }return false
+}
+function inCheck(b,c){const k=findKing(b,c);return !k||attacked(b,k,enemy(c))}
+
+function pseudo(from,b=board,state={castle,ep}){
+  const p=b[from];if(!p)return[];const c=color(p),x=files.indexOf(from[0]),y=8-+from[1],t=p.toLowerCase(),out=[];
+  const add=(nx,ny,extra={})=>{if(nx<0||nx>7||ny<0||ny>7)return;const z=sq(nx,ny);if(!b[z]||color(b[z])!==c)out.push({from,to:z,...extra})};
+  if(t==='p'){
+    const d=c==='w'?-1:1,start=c==='w'?6:1,promoRank=c==='w'?0:7;
+    const z=sq(x,y+d);if(!b[z]&&y+d>=0&&y+d<8){if(y+d===promoRank){for(const pr of ['q','r','b','n'])out.push({from,to:z,promotion:pr})}else out.push({from,to:z});
+      if(y===start&&!b[sq(x,y+2*d)])out.push({from,to:sq(x,y+2*d)})}
+    for(const dx of[-1,1]){const nx=x+dx,ny=y+d;if(nx<0||nx>7||ny<0||ny>7)continue;const z=sq(nx,ny);if((b[z]&&color(b[z])!==c)||z===state.ep){if(ny===promoRank){for(const pr of ['q','r','b','n'])out.push({from,to:z,promotion:pr,ep:z===state.ep&&!b[z]})}else out.push({from,to:z,ep:z===state.ep&&!b[z]})}}
+  }else if(t==='n'){[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2]].forEach(v=>add(x+v[0],y+v[1]))
+  }else if(t==='k'){
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)if(dx||dy)add(x+dx,y+dy);
+    if(c==='w'&&from==='e1'&&!inCheck(b,c)){
+      if(state.castle.wK&&b.f1==null&&b.g1==null&&b.h1==='R'&&!attacked(b,'f1','b')&&!attacked(b,'g1','b'))out.push({from,to:'g1',castle:'K'});
+      if(state.castle.wQ&&b.d1==null&&b.c1==null&&b.b1==null&&b.a1==='R'&&!attacked(b,'d1','b')&&!attacked(b,'c1','b'))out.push({from,to:'c1',castle:'Q'});
+    }
+    if(c==='b'&&from==='e8'&&!inCheck(b,c)){
+      if(state.castle.bK&&b.f8==null&&b.g8==null&&b.h8==='r'&&!attacked(b,'f8','w')&&!attacked(b,'g8','w'))out.push({from,to:'g8',castle:'K'});
+      if(state.castle.bQ&&b.d8==null&&b.c8==null&&b.b8==null&&b.a8==='r'&&!attacked(b,'d8','w')&&!attacked(b,'c8','w'))out.push({from,to:'c8',castle:'Q'});
+    }
+  }else{
+    let ds=[];if(t==='b'||t==='q')ds.push([1,1],[1,-1],[-1,1],[-1,-1]);if(t==='r'||t==='q')ds.push([1,0],[-1,0],[0,1],[0,-1]);
+    for(const [dx,dy] of ds){let nx=x+dx,ny=y+dy;while(nx>=0&&nx<8&&ny>=0&&ny<8){let z=sq(nx,ny);if(!b[z])out.push({from,to:z});else{if(color(b[z])!==c&&b[z].toLowerCase()!=='k')out.push({from,to:z});break}nx+=dx;ny+=dy}}
+  }return out;
+}
+function applyMove(b,m,state){
+  const nb=cloneBoard(b),p=nb[m.from],c=color(p);delete nb[m.from];
+  if(m.ep){const capSq=m.to[0]+(c==='w'?String(+m.to[1]+1):String(+m.to[1]-1));delete nb[capSq]}
+  if(m.castle){if(m.to==='g1'){delete nb.h1;nb.f1='R'}if(m.to==='c1'){delete nb.a1;nb.d1='R'}if(m.to==='g8'){delete nb.h8;nb.f8='r'}if(m.to==='c8'){delete nb.a8;nb.d8='r'}}
+  nb[m.to]=m.promotion?(c==='w'?m.promotion.toUpperCase():m.promotion):p;
+  const ns={castle:Object.assign({},state.castle),ep:null};
+  if(p==='K'){ns.castle.wK=ns.castle.wQ=false}if(p==='k'){ns.castle.bK=ns.castle.bQ=false}
+  if(m.from==='a1'||m.to==='a1')ns.castle.wQ=false;if(m.from==='h1'||m.to==='h1')ns.castle.wK=false;if(m.from==='a8'||m.to==='a8')ns.castle.bQ=false;if(m.from==='h8'||m.to==='h8')ns.castle.bK=false;
+  if(p.toLowerCase()==='p'&&Math.abs(+m.to[1]-+m.from[1])===2)ns.ep=m.from[0]+String((+m.from[1]+ +m.to[1])/2);
+  return {board:nb,state:ns};
+}
+function legalMoves(c,b=board,state={castle,ep}){
+  const all=[];for(const from in b){if(color(b[from])!==c)continue;for(const m of pseudo(from,b,state)){const r=applyMove(b,m,state);if(!inCheck(r.board,c))all.push(m)}}return all;
+}
+function makeMove(m){const r=applyMove(board,m,{castle,ep});board=r.board;castle=r.state.castle;ep=r.state.ep;turn=enemy(turn);halfmove=(board[m.to]&&board[m.to].toLowerCase()==='p'||m.captured)?0:halfmove+1;}
+function notation(m){return m.from+' → '+m.to+(m.promotion?'='+m.promotion.toUpperCase():'')}
+function afterMoveStatus(){
+  const legal=legalMoves(turn);if(!legal.length){gameOver=true;if(inCheck(board,turn)){status('♟️ Шах и мат! '+(turn==='w'?'Бот победил.':'Ты победил!'));}else status('🤝 Пат — ничья.');return true}
+  if(inCheck(board,turn)){status('⚠️ Шах! '+(turn===player?'Твой ход — король под шахом.':'Бот под шахом — он ищет защиту…'));return false}
+  status(turn===player?'Твой ход.':'Ход бота…');return false;
+}
+function render(){
+  const el=document.getElementById('botBoard');el.innerHTML='';el.classList.toggle('flipped',orientation==='b');
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){let s=files[c]+(8-r),d=document.createElement('div');d.className='botSq '+((r+c)%2?'botDark':'botLight');
+    if(s===selected)d.classList.add('botSel');if(selected&&legalMoves(player).filter(m=>m.from===selected).some(m=>m.to===s))d.classList.add(board[s]?'botCapture':'botDot');
+    if(board[s]){let pc=document.createElement('span');pc.className='botPiece '+(color(board[s])==='w'?'botWp':'botBp');pc.textContent=glyph[board[s]];d.appendChild(pc)}
+    if(c===0){let rank=document.createElement('span');rank.className='coord rank';rank.textContent=8-r;d.appendChild(rank)}if(r===7){let file=document.createElement('span');file.className='coord file';file.textContent=files[c];d.appendChild(file)}
+    d.addEventListener('click',()=>click(s));el.appendChild(d)
+  }
+}
+function click(z){
+  if(thinking||gameOver||turn!==player)return;
+  if(!selected){if(board[z]&&color(board[z])===player){selected=z;render()}return}
+  if(z===selected){selected=null;render();return}
+  const legal=legalMoves(player).filter(m=>m.from===selected&&m.to===z);if(!legal.length){status('❌ Нельзя: этот ход оставляет твоего короля под шахом.');selected=null;render();return}
+  let m=legal[0];if(m.promotion){const q=prompt('Превращение пешки: q — ферзь, r — ладья, b — слон, n — конь','q');m.promotion=['q','r','b','n'].includes((q||'q').toLowerCase())?(q||'q').toLowerCase():'q'}
+  makeMove(m);selected=null;render();if(afterMoveStatus())return;setTimeout(botMove,350);
+}
+function evaluate(b,side){
+  let score=0;
+  const center={d4:28,e4:28,d5:28,e5:28,c4:10,f4:10,c5:10,f5:10};
+  for(const s in b){
+    const p=b[s],v=value[p.toLowerCase()],pc=color(p);
+    let pos=center[s]||0;
+    if(p.toLowerCase()==='p'){ const rank=Number(s[1]); pos+=pc==='w'?(rank-2)*5:(7-rank)*5; }
+    if(p.toLowerCase()==='n'||p.toLowerCase()==='b')pos+=Math.max(0,3-Math.abs(files.indexOf(s[0])-3))*3;
+    score+=(pc===side?v+pos:-(v+pos));
+  }
+  if(inCheck(b,enemy(side)))score+=55;
+  if(inCheck(b,side))score-=55;
+  return score;
+}
+function orderedMoves(c,b,state){
+  return legalMoves(c,b,state).sort((a,bm)=>{const va=(b[a.to]?value[b[a.to].toLowerCase()]:0)+(a.promotion?800:0);const vb=(b[bm.to]?value[bm.to.toLowerCase()]:0)+(bm.promotion?800:0);return vb-va})
+}
+function search(b,state,c,depth,alpha,beta){
+  const ms=orderedMoves(c,b,state);if(!ms.length)return inCheck(b,c)?-999999-depth:0;if(depth===0)return evaluate(b,c);
+  let best=-Infinity;for(const m of ms){const r=applyMove(b,m,state);const score=-search(r.board,r.state,enemy(c),depth-1,-beta,-alpha);if(score>best)best=score;if(score>alpha)alpha=score;if(alpha>=beta)break}return best;
+}
+function botMove(){
+  if(turn===player||gameOver)return;thinking=true;status('🤖 Бот думает: ищет шахи, угрозы и тактические ответы…');
+  setTimeout(()=>{
+    const state={castle,ep},ms=orderedMoves(turn,board,state);if(!ms.length){thinking=false;afterMoveStatus();return}
+    let best=ms[0],bestScore=-Infinity;const depth=3;for(const m of ms){const r=applyMove(board,m,state);const score=-search(r.board,r.state,enemy(turn),depth-1,-Infinity,Infinity);if(score>bestScore){bestScore=score;best=m}}
+    makeMove(best);thinking=false;render();if(afterMoveStatus())return;status('🤖 Бот: '+notation(best)+'. Твой ход.');
+  },120);
+}
+function status(msg){document.getElementById('botStatus').textContent=msg||(turn===player?'Твой ход.':'Ход бота…')}
+window.botReset=reset;
+document.getElementById('botWhite').onclick=()=>{player='w';orientation='w';reset()};
+document.getElementById('botBlack').onclick=()=>{player='b';orientation='b';reset()};
+document.getElementById('botReset').onclick=reset;
+reset();
+})();
+</script>
+</body></html>
